@@ -2,9 +2,12 @@ import streamlit as st
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from xgboost import XGBRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 
 # Upload files
-st.title("Calories & Exercise Dashboard")
+st.title("Calories Burnt Prediction App")
 
 uploaded_calories = st.file_uploader("Upload Calories CSV", type=['csv'])
 uploaded_exercise = st.file_uploader("Upload Exercise CSV", type=['csv'])
@@ -18,47 +21,57 @@ def load_data(calories_file, exercise_file):
         return df
     return None
 
-# Load the data
+# Load and display data
 df = load_data(uploaded_calories, uploaded_exercise)
 
 if df is not None:
-    # Sidebar filters
-    st.sidebar.header("Filters")
-    gender = st.sidebar.multiselect("Select Gender", options=df['Gender'].unique(), default=df['Gender'].unique())
-    age_range = st.sidebar.slider("Select Age Range", int(df['Age'].min()), int(df['Age'].max()), (20, 60))
+    st.subheader("Dataset Preview")
+    st.write(df.head())
 
-    filtered_df = df[(df['Gender'].isin(gender)) & (df['Age'].between(age_range[0], age_range[1]))]
+    # Feature selection
+    X = df[['Age', 'Height', 'Weight', 'Duration', 'Heart_Rate', 'Body_Temp']]
+    y = df['Calories']
 
-    st.subheader("Data Preview")
-    st.write(filtered_df.head())
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    st.subheader("Summary Statistics")
-    st.write(filtered_df.describe())
+    # Model training
+    model = XGBRegressor()
+    model.fit(X_train, y_train)
 
-    st.subheader("Correlation Heatmap")
-    corr = filtered_df[['Age', 'Height', 'Weight', 'Duration', 'Heart_Rate', 'Body_Temp', 'Calories']].corr()
+    # Model evaluation
+    y_pred = model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
+    st.write(f"✅ Model trained with Mean Squared Error: {mse:.2f}")
+
+    st.subheader("📊 Correlation Heatmap")
+    corr = df[['Age', 'Height', 'Weight', 'Duration', 'Heart_Rate', 'Body_Temp', 'Calories']].corr()
     fig, ax = plt.subplots()
     sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
     st.pyplot(fig)
 
-    st.subheader("Scatter Plots")
-    col1, col2 = st.columns(2)
+    st.header("🔮 Predict Calories Burnt")
 
-    with col1:
-        st.write("Calories vs Duration")
-        fig1, ax1 = plt.subplots()
-        sns.scatterplot(data=filtered_df, x='Duration', y='Calories', hue='Gender', ax=ax1)
-        st.pyplot(fig1)
+    # User Inputs
+    weight = st.number_input("Enter your Weight (kg)", min_value=20.0, max_value=200.0, value=70.0)
+    age = st.slider("Age", 10, 100, 30)
+    height = st.slider("Height (cm)", 100, 250, 170)
+    duration = st.slider("Duration of Exercise (mins)", 5, 300, 60)
+    heart_rate = st.slider("Heart Rate (bpm)", 60, 200, 120)
+    body_temp = st.slider("Body Temperature (°C)", 35.0, 42.0, 37.0)
 
-    with col2:
-        st.write("Calories vs Heart Rate")
-        fig2, ax2 = plt.subplots()
-        sns.scatterplot(data=filtered_df, x='Heart_Rate', y='Calories', hue='Gender', ax=ax2)
-        st.pyplot(fig2)
+    if st.button("Predict Calories"):
+        input_data = pd.DataFrame({
+            'Age': [age],
+            'Height': [height],
+            'Weight': [weight],
+            'Duration': [duration],
+            'Heart_Rate': [heart_rate],
+            'Body_Temp': [body_temp]
+        })
 
-    st.subheader("Boxplot: Calories by Gender")
-    fig3, ax3 = plt.subplots()
-    sns.boxplot(data=filtered_df, x='Gender', y='Calories')
-    st.pyplot(fig3)
+        prediction = model.predict(input_data)
+        st.success(f"🔥 Estimated Calories Burnt: **{prediction[0]:.2f}**")
+
 else:
-    st.warning("Please upload both Calories and Exercise CSV files to proceed.")
+    st.warning("⚠️ Please upload both Calories and Exercise CSV files.")
