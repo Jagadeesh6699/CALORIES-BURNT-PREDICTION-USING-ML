@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 # Load data
 @st.cache_data
 def load_data():
-    calories_df = pd.read_csv(r"C:\Users\prasa\OneDrive\Documents\calories burnt\calories.csv")
-    exercise_df = pd.read_csv(r"C:\Users\prasa\OneDrive\Documents\calories burnt\exercise.csv")
+    calories_df = pd.read_csv("C:\Capstone\calories burnt\calories.csv")
+    exercise_df = pd.read_csv("C:\Capstone\calories burnt\exercise.csv")
     merged_df = pd.merge(exercise_df, calories_df, on="User_ID")
     return merged_df
 
